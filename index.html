@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Updated viewport tag to stop iPhones from weirdly zooming out -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arcade Hoops Multiplayer</title>
     
-    <!-- Auto Cache-Buster for CSS -->
     <script>
         const cssLink = document.createElement('link');
         cssLink.rel = 'stylesheet';
@@ -30,10 +30,19 @@
             <div class="score-box">P2 Score: <br><span id="p2Score">0</span></div>
         </div>
         <p>Room Code: <strong id="displayRoomCode"></strong></p>
-        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        
+        <!-- Wrapped canvas in a container to position the Rematch overlay over it -->
+        <div id="gameWrapper">
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+            
+            <div id="rematchOverlay">
+                <h2 id="winnerText"></h2>
+                <button id="readyBtn">READY UP FOR REMATCH</button>
+                <p id="readyText"></p>
+            </div>
+        </div>
     </div>
 
-    <!-- Auto Cache-Buster for JavaScript -->
     <script>
         const jsScript = document.createElement('script');
         jsScript.type = 'module';
