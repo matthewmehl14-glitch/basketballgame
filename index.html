@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arcade Hoops Multiplayer</title>
-    <!-- Version tag added to force mobile browsers to load new CSS -->
-    <link rel="stylesheet" href="style.css?v=2">
+    
+    <!-- Auto Cache-Buster for CSS -->
+    <script>
+        const cssLink = document.createElement('link');
+        cssLink.rel = 'stylesheet';
+        cssLink.href = 'style.css?v=' + Date.now();
+        document.head.appendChild(cssLink);
+    </script>
 </head>
 <body>
     <div id="lobby">
@@ -27,7 +33,12 @@
         <canvas id="gameCanvas" width="800" height="500"></canvas>
     </div>
 
-    <!-- Version tag added to force mobile browsers to load new JavaScript -->
-    <script type="module" src="app.js?v=2"></script>
+    <!-- Auto Cache-Buster for JavaScript -->
+    <script>
+        const jsScript = document.createElement('script');
+        jsScript.type = 'module';
+        jsScript.src = 'app.js?v=' + Date.now();
+        document.body.appendChild(jsScript);
+    </script>
 </body>
 </html>
