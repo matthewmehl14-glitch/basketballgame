@@ -28,9 +28,6 @@ const timerEl = document.getElementById('timer');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const arcadeBG = new Image();
-arcadeBG.src = 'background.jpg'; 
-
 document.getElementById('createBtn').addEventListener('click', () => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     currentRoom = code;
@@ -42,7 +39,6 @@ document.getElementById('createBtn').addEventListener('click', () => {
         timer: 60,
         status: 'waiting'
     });
-
     startGameUI(code);
 });
 
@@ -51,7 +47,6 @@ document.getElementById('joinBtn').addEventListener('click', () => {
     if(code.length === 4) {
         currentRoom = code;
         playerRole = 'p2';
-        
         update(ref(db, 'rooms/' + code), { status: 'active' });
         startGameUI(code);
     } else {
@@ -76,7 +71,6 @@ function startGameUI(code) {
             }
         }
     });
-
     requestAnimationFrame(gameLoop);
 }
 
@@ -96,17 +90,18 @@ class Ball {
     constructor(startX, startY, targetX, targetY) {
         this.x = startX;
         this.y = startY;
-        this.radius = 14;
-        
+        this.radius = 15;
+        this.gravity = 0.5;
+        this.scored = false;
+        this.playerOwner = playerRole;
+
+        // Physics calculation to land exactly at the mouse click location
+        const framesToTarget = 40; 
         const dx = targetX - startX;
         const dy = targetY - startY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        this.vx = (dx / distance) * 9; 
-        this.vy = -14; 
-        this.gravity = 0.45;
-        this.scored = false;
-        this.targetHoopX = targetX;
+
+        this.vx = dx / framesToTarget; 
+        this.vy = (dy - 0.5 * this.gravity * framesToTarget * framesToTarget) / framesToTarget; 
     }
 
     update() {
@@ -114,13 +109,15 @@ class Ball {
         this.vy += this.gravity;
         this.y += this.vy;
 
-        const hoopY = 165;
-        const hoopX = this.targetHoopX;
+        // Hoop coordinates based on player role
+        const hoopX = this.playerOwner === 'p1' ? 200 : 600;
+        const hoopY = 130;
 
-        if (!this.scored && Math.abs(this.x - hoopX) < 25 && Math.abs(this.y - hoopY) < 15 && this.vy > 0) {
+        // Collision detection for scoring (only registers when the ball is falling downward)
+        if (!this.scored && Math.abs(this.x - hoopX) < 28 && Math.abs(this.y - hoopY) < 18 && this.vy > 0) {
             this.scored = true;
             myScore++;
-            if(playerRole === 'p1') {
+            if(this.playerOwner === 'p1') {
                 update(ref(db, 'rooms/' + currentRoom), { p1Score: myScore });
             } else {
                 update(ref(db, 'rooms/' + currentRoom), { p2Score: myScore });
@@ -153,48 +150,87 @@ canvas.addEventListener('mousedown', (e) => {
     if(timeRemaining <= 0) return; 
     if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
     
-    let startX, targetX;
-    if (playerRole === 'p1') {
-        startX = 180;
-        targetX = 368; 
-    } else {
-        startX = 620;
-        targetX = 633; 
-    }
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Start balls at the bottom center of the respective player's side
+    const startX = playerRole === 'p1' ? 200 : 600;
+    const startY = 480; 
     
-    activeBalls.push(new Ball(startX, 400, targetX, 165));
+    activeBalls.push(new Ball(startX, startY, clickX, clickY));
 });
 
-function gameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    if (arcadeBG.complete && arcadeBG.naturalWidth !== 0) {
-        ctx.drawImage(arcadeBG, 0, 0, canvas.width, canvas.height);
-    } else {
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = 'white';
-        ctx.strokeRect(293, 65, 150, 100); 
-        ctx.strokeRect(558, 65, 150, 100);
-        ctx.fillStyle = '#ff3333';
-        ctx.fillRect(318, 150, 100, 10);
-        ctx.fillRect(583, 150, 100, 10);
-    }
+function drawHoop(ctx, x, y) {
+    // Glass Backboard
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(x - 75, y - 65, 150, 100, 10);
+    ctx.fill();
+    ctx.stroke();
 
+    // Inner Target Square
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 25, y - 25, 50, 40);
+
+    // Nylon Net
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 25, y + 10); ctx.lineTo(x - 15, y + 60);
+    ctx.moveTo(x + 25, y + 10); ctx.lineTo(x + 15, y + 60);
+    ctx.moveTo(x - 10, y + 10); ctx.lineTo(x, y + 60);
+    ctx.moveTo(x + 10, y + 10); ctx.lineTo(x, y + 60);
+    
+    ctx.moveTo(x - 20, y + 25); ctx.lineTo(x + 20, y + 25);
+    ctx.moveTo(x - 18, y + 40); ctx.lineTo(x + 18, y + 40);
+    ctx.stroke();
+
+    // Red Rim
+    ctx.fillStyle = '#ff3333';
+    ctx.shadowColor = '#ff3333';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(x - 30, y + 5, 60, 8);
+    ctx.shadowBlur = 0; // Reset shadow
+}
+
+function gameLoop() {
+    // Draw Dark Arcade Background
+    let bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGradient.addColorStop(0, '#0f0f13');
+    bgGradient.addColorStop(1, '#1a1a24');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Floor Curve
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.ellipse(400, 500, 500, 100, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.stroke();
+
+    // Draw Symmetrical Hoops
+    drawHoop(ctx, 200, 120); // Player 1
+    drawHoop(ctx, 600, 120); // Player 2
+
+    // Update and Draw Balls
     activeBalls = activeBalls.filter(ball => ball.y < canvas.height + 50); 
     activeBalls.forEach(ball => {
         ball.update();
         ball.draw(ctx);
     });
 
+    // Game UI overlays
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '20px Courier New';
+    ctx.font = 'bold 20px Courier New';
     ctx.textAlign = 'center';
     
     const statusText = (playerRole === 'p1' && parseInt(timerEl.innerText) === 60) 
         ? "Waiting for Player 2 to join..." 
-        : `YOU ARE P${playerRole.toUpperCase()} - Shoot to Score!`;
+        : `YOU ARE P${playerRole.toUpperCase()} - Aim & Click to Shoot!`;
         
     ctx.fillText(statusText, canvas.width / 2, 455);
 
