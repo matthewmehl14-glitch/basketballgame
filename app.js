@@ -17,9 +17,7 @@ const db = getDatabase(app);
 let currentRoom = null;
 let playerRole = null; 
 let myScore = 0;
-
-// Game state for physics
-let activeBalls = []; // Array to hold balls thrown on screen
+let activeBalls = []; 
 
 const lobby = document.getElementById('lobby');
 const gameArea = document.getElementById('gameArea');
@@ -30,10 +28,8 @@ const timerEl = document.getElementById('timer');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Load Background Assets
 const arcadeBG = new Image();
-// Replace this with a direct path to an uploaded design or use our generated realistic arcade assets:
-arcadeBG.src = 'https://i.ibb.co/68032Jg0/image-7.png'; // High-fidelity visual arcade skin
+arcadeBG.src = 'background.jpg'; 
 
 document.getElementById('createBtn').addEventListener('click', () => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -96,20 +92,18 @@ function startTimer() {
     }, 1000);
 }
 
-// -- BALL PHYSICS --
 class Ball {
     constructor(startX, startY, targetX, targetY) {
         this.x = startX;
         this.y = startY;
         this.radius = 14;
         
-        // Shoot calculations (trajectory towards hoop)
         const dx = targetX - startX;
         const dy = targetY - startY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         this.vx = (dx / distance) * 9; 
-        this.vy = -14; // Arc velocity
+        this.vy = -14; 
         this.gravity = 0.45;
         this.scored = false;
         this.targetHoopX = targetX;
@@ -120,8 +114,6 @@ class Ball {
         this.vy += this.gravity;
         this.y += this.vy;
 
-        // Collision Check (Score detection area)
-        // P1 Hoop ~ 340, 165; P2 Hoop ~ 620, 165
         const hoopY = 165;
         const hoopX = this.targetHoopX;
 
@@ -137,7 +129,6 @@ class Ball {
     }
 
     draw(ctx) {
-        // Draw real-looking basketball with lines
         ctx.save();
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -147,7 +138,6 @@ class Ball {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Ball seam/grip curves for realism
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, -Math.PI / 4, Math.PI / 4);
         ctx.stroke();
@@ -161,45 +151,43 @@ class Ball {
 canvas.addEventListener('mousedown', (e) => {
     const timeRemaining = parseInt(timerEl.innerText);
     if(timeRemaining <= 0) return; 
-    if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; // Wait for P2
+    if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
     
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Limit players to shooting only on their side's hoop (P1: left, P2: right)
     let startX, targetX;
     if (playerRole === 'p1') {
         startX = 180;
-        targetX = 368; // Player 1 Hoop Target
+        targetX = 368; 
     } else {
         startX = 620;
-        targetX = 633; // Player 2 Hoop Target
+        targetX = 633; 
     }
     
-    // Create new physics-based projectile and fire it
     activeBalls.push(new Ball(startX, 400, targetX, 165));
 });
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Backboard / Cage arcade machine interface
-    if (arcadeBG.complete) {
+    if (arcadeBG.complete && arcadeBG.naturalWidth !== 0) {
         ctx.drawImage(arcadeBG, 0, 0, canvas.width, canvas.height);
     } else {
-        ctx.fillStyle = '#111';
+        ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = 'white';
+        ctx.strokeRect(293, 65, 150, 100); 
+        ctx.strokeRect(558, 65, 150, 100);
+        ctx.fillStyle = '#ff3333';
+        ctx.fillRect(318, 150, 100, 10);
+        ctx.fillRect(583, 150, 100, 10);
     }
 
-    // Update and Draw Live Shootout Physics
-    activeBalls = activeBalls.filter(ball => ball.y < canvas.height + 50); // Clean up out-of-bounds balls
+    activeBalls = activeBalls.filter(ball => ball.y < canvas.height + 50); 
     activeBalls.forEach(ball => {
         ball.update();
         ball.draw(ctx);
     });
 
-    // Game UI overlays
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '20px Courier New';
     ctx.textAlign = 'center';
