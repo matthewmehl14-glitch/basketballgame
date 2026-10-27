@@ -1,0 +1,68 @@
+body {
+    background-color: #111;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+#lobby {
+    margin-top: 150px;
+}
+
+#scoreboard {
+    display: flex;
+    justify-content: space-between;
+    background-color: #222;
+    border: 3px solid #ff3333;
+    border-radius: 10px;
+    padding: 15px 30px;
+    font-size: 24px;
+    width: 800px;
+    margin: 0 auto 15px auto;
+    box-sizing: border-box;
+}
+
+.score-box, .timer-box {
+    color: #ff3333;
+    font-weight: bold;
+    text-shadow: 0 0 10px #ff3333;
+}
+
+canvas {
+    background-color: #1a1a1a;
+    border: 3px solid white;
+    border-radius: 10px;
+    cursor: crosshair;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+button {
+    padding: 12px 25px;
+    font-size: 18px;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #ff3333;
+    color: white;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    text-transform: uppercase;
+}
+
+button:hover { 
+    background-color: #cc0000; 
+}
+
+input {
+    padding: 12px;
+    font-size: 18px;
+    width: 250px;
+    text-align: center;
+    font-family: 'Courier New', Courier, monospace;
+    border: 2px solid #555;
+    background: #222;
+    color: white;
+    border-radius: 5px;
+}
