@@ -4,7 +4,7 @@ body {
     font-family: 'Courier New', Courier, monospace;
     text-align: center;
     margin: 0;
-    padding: 20px;
+    padding: 10px;
 }
 
 #lobby {
@@ -17,10 +17,11 @@ body {
     background-color: #111;
     border: 2px solid #333;
     border-radius: 10px;
-    padding: 15px 30px;
-    font-size: 24px;
-    width: 800px;
-    margin: 0 auto 15px auto;
+    padding: 10px 20px;
+    font-size: 20px;
+    width: 100%; /* Changed to 100% for mobile */
+    max-width: 800px;
+    margin: 0 auto 10px auto;
     box-sizing: border-box;
     box-shadow: 0 0 15px rgba(255, 51, 51, 0.2);
 }
@@ -31,12 +32,49 @@ body {
     text-shadow: 0 0 10px #ff3333;
 }
 
+/* Wrapper to hold the canvas and the overlay together */
+#gameWrapper {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
 canvas {
     background-color: #0a0a0a;
     border: 3px solid #333;
     border-radius: 10px;
     cursor: crosshair;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    max-width: 100%; /* Forces canvas to shrink on mobile */
+    height: auto;
+    touch-action: none; /* Stops the screen from scrolling when you tap rapidly */
+}
+
+/* Rematch UI Overlay Styles */
+#rematchOverlay {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 10;
+}
+
+#winnerText {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+#readyText {
+    margin-top: 15px;
+    font-weight: bold;
+    color: #bbb;
 }
 
 button {
