@@ -19,6 +19,12 @@ let playerRole = null;
 let myScore = 0;
 let activeBalls = []; 
 
+// New Power Bar & Cooldown variables
+let powerValue = 0;
+let powerDir = 1;
+const powerSpeed = 2.5; 
+let lastShotTime = 0;
+
 const lobby = document.getElementById('lobby');
 const gameArea = document.getElementById('gameArea');
 const displayRoomCode = document.getElementById('displayRoomCode');
@@ -87,21 +93,31 @@ function startTimer() {
 }
 
 class Ball {
-    constructor(startX, startY, targetX, targetY) {
+    constructor(startX, startY, power) {
         this.x = startX;
         this.y = startY;
         this.radius = 15;
         this.gravity = 0.5;
         this.scored = false;
         this.playerOwner = playerRole;
+        this.power = power;
 
-        // Physics calculation to land exactly at the mouse click location
-        const framesToTarget = 40; 
-        const dx = targetX - startX;
-        const dy = targetY - startY;
+        // Define the "Sweet Spot" to score
+        this.isPerfect = (power >= 60 && power <= 75);
 
-        this.vx = dx / framesToTarget; 
-        this.vy = (dy - 0.5 * this.gravity * framesToTarget * framesToTarget) / framesToTarget; 
+        if (this.isPerfect) {
+            // Perfect trajectory
+            this.vy = -19.5;
+            this.vx = (Math.random() - 0.5) * 1.2; 
+        } else if (power < 60) {
+            // Airball (Too weak)
+            this.vy = -13 - (power / 60) * 4; 
+            this.vx = (Math.random() - 0.5) * 2.5;
+        } else {
+            // Overshoot (Too strong)
+            this.vy = -21 - ((power - 75) / 25) * 4; 
+            this.vx = (Math.random() - 0.5) * 3;
+        }
     }
 
     update() {
@@ -109,12 +125,25 @@ class Ball {
         this.vy += this.gravity;
         this.y += this.vy;
 
-        // Hoop coordinates based on player role
         const hoopX = this.playerOwner === 'p1' ? 200 : 600;
         const hoopY = 130;
 
-        // Collision detection for scoring (only registers when the ball is falling downward)
-        if (!this.scored && Math.abs(this.x - hoopX) < 28 && Math.abs(this.y - hoopY) < 18 && this.vy > 0) {
+        // Simulate bouncing off the backboard if you throw too hard
+        if (!this.isPerfect && this.power > 75 && this.vy > 0 && this.y > 60 && this.y < 140 && Math.abs(this.x - hoopX) < 60) {
+            this.vy = -3; 
+            this.vx = (this.x - hoopX > 0 ? 1 : -1) * (2 + Math.random() * 2);
+            this.power = 0; // Stop multiple bounces
+        }
+        
+        // Simulate hitting the front of the rim if you throw too weak
+        if (!this.isPerfect && this.power < 60 && this.vy > 0 && Math.abs(this.x - hoopX) < 40 && Math.abs(this.y - hoopY) < 15) {
+            this.vy = -2;
+            this.vx = (Math.random() - 0.5) * 4;
+            this.power = 0; 
+        }
+
+        // Scoring Logic (Only perfect shots go smoothly in)
+        if (!this.scored && this.isPerfect && Math.abs(this.x - hoopX) < 28 && Math.abs(this.y - hoopY) < 18 && this.vy > 0) {
             this.scored = true;
             myScore++;
             if(this.playerOwner === 'p1') {
@@ -150,19 +179,19 @@ canvas.addEventListener('mousedown', (e) => {
     if(timeRemaining <= 0) return; 
     if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
     
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Start balls at the bottom center of the respective player's side
+    // Anti-Spam Cooldown (0.6 seconds between shots)
+    const now = Date.now();
+    if (now - lastShotTime < 600) return; 
+    lastShotTime = now;
+    
     const startX = playerRole === 'p1' ? 200 : 600;
     const startY = 480; 
     
-    activeBalls.push(new Ball(startX, startY, clickX, clickY));
+    // Fire ball using the exact power value locked in at the moment of the click
+    activeBalls.push(new Ball(startX, startY, powerValue));
 });
 
 function drawHoop(ctx, x, y) {
-    // Glass Backboard
     ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.lineWidth = 4;
@@ -171,11 +200,9 @@ function drawHoop(ctx, x, y) {
     ctx.fill();
     ctx.stroke();
 
-    // Inner Target Square
     ctx.lineWidth = 3;
     ctx.strokeRect(x - 25, y - 25, 50, 40);
 
-    // Nylon Net
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -183,28 +210,24 @@ function drawHoop(ctx, x, y) {
     ctx.moveTo(x + 25, y + 10); ctx.lineTo(x + 15, y + 60);
     ctx.moveTo(x - 10, y + 10); ctx.lineTo(x, y + 60);
     ctx.moveTo(x + 10, y + 10); ctx.lineTo(x, y + 60);
-    
     ctx.moveTo(x - 20, y + 25); ctx.lineTo(x + 20, y + 25);
     ctx.moveTo(x - 18, y + 40); ctx.lineTo(x + 18, y + 40);
     ctx.stroke();
 
-    // Red Rim
     ctx.fillStyle = '#ff3333';
     ctx.shadowColor = '#ff3333';
     ctx.shadowBlur = 10;
     ctx.fillRect(x - 30, y + 5, 60, 8);
-    ctx.shadowBlur = 0; // Reset shadow
+    ctx.shadowBlur = 0; 
 }
 
 function gameLoop() {
-    // Draw Dark Arcade Background
     let bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     bgGradient.addColorStop(0, '#0f0f13');
     bgGradient.addColorStop(1, '#1a1a24');
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Floor Curve
     ctx.fillStyle = '#111';
     ctx.beginPath();
     ctx.ellipse(400, 500, 500, 100, 0, 0, Math.PI * 2);
@@ -212,27 +235,55 @@ function gameLoop() {
     ctx.strokeStyle = '#222';
     ctx.stroke();
 
-    // Draw Symmetrical Hoops
-    drawHoop(ctx, 200, 120); // Player 1
-    drawHoop(ctx, 600, 120); // Player 2
+    drawHoop(ctx, 200, 120); 
+    drawHoop(ctx, 600, 120); 
 
-    // Update and Draw Balls
     activeBalls = activeBalls.filter(ball => ball.y < canvas.height + 50); 
     activeBalls.forEach(ball => {
         ball.update();
         ball.draw(ctx);
     });
 
-    // Game UI overlays
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = 'bold 20px Courier New';
+    // Animate Power Bar (only if game is active)
+    const timeRemaining = parseInt(timerEl.innerText);
+    if (timeRemaining > 0 && !(playerRole === 'p1' && timeRemaining === 60)) {
+        powerValue += powerDir * powerSpeed;
+        if (powerValue >= 100) {
+            powerValue = 100;
+            powerDir = -1;
+        } else if (powerValue <= 0) {
+            powerValue = 0;
+            powerDir = 1;
+        }
+    }
+
+    // Draw Power Bar Background
+    ctx.fillStyle = '#222';
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.fillRect(250, 455, 300, 25);
+    ctx.strokeRect(250, 455, 300, 25);
+
+    // Draw Sweet Spot (60% to 75%)
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+    ctx.fillRect(250 + (300 * 0.60), 456, 300 * 0.15, 23);
+
+    // Draw Power Cursor
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(250 + (300 * (powerValue / 100)) - 3, 450, 6, 35);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = 'bold 18px Courier New';
     ctx.textAlign = 'center';
     
-    const statusText = (playerRole === 'p1' && parseInt(timerEl.innerText) === 60) 
+    const statusText = (playerRole === 'p1' && timeRemaining === 60) 
         ? "Waiting for Player 2 to join..." 
-        : `YOU ARE P${playerRole.toUpperCase()} - Aim & Click to Shoot!`;
+        : `P${playerRole.toUpperCase()} - Stop the line in the GREEN!`;
         
-    ctx.fillText(statusText, canvas.width / 2, 455);
+    ctx.fillText(statusText, canvas.width / 2, 435);
 
     requestAnimationFrame(gameLoop);
 }
