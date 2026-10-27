@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Hoops Multiplayer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="lobby">
+        <h1>ARCADE HOOPS</h1>
+        <button id="createBtn">Create New Game</button>
+        <br><br>
+        <p>OR</p>
+        <input type="text" id="roomCode" placeholder="Enter 4-digit code" maxlength="4">
+        <button id="joinBtn">Join Game</button>
+    </div>
+
+    <div id="gameArea" style="display: none;">
+        <div id="scoreboard">
+            <div class="score-box">P1 Score: <br><span id="p1Score">0</span></div>
+            <div class="timer-box">Time: <br><span id="timer">60</span></div>
+            <div class="score-box">P2 Score: <br><span id="p2Score">0</span></div>
+        </div>
+        <p>Room Code: <strong id="displayRoomCode"></strong></p>
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
