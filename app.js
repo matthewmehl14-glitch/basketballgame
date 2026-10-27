@@ -18,6 +18,7 @@ let currentRoom = null;
 let playerRole = null; 
 let myScore = 0;
 let activeBalls = []; 
+let iAmReady = false;
 
 let powerValue = 0;
 let powerDir = 1;
@@ -33,16 +34,24 @@ const timerEl = document.getElementById('timer');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+const rematchOverlay = document.getElementById('rematchOverlay');
+const winnerText = document.getElementById('winnerText');
+const readyBtn = document.getElementById('readyBtn');
+const readyText = document.getElementById('readyText');
+
 document.getElementById('createBtn').addEventListener('click', () => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     currentRoom = code;
     playerRole = 'p1';
     
+    // Setup initial database including the new Ready states
     set(ref(db, 'rooms/' + code), {
         p1Score: 0,
         p2Score: 0,
-        timer: 30,
-        status: 'waiting'
+        timer: 60,
+        status: 'waiting',
+        p1Ready: false,
+        p2Ready: false
     });
     startGameUI(code);
 });
@@ -71,13 +80,83 @@ function startGameUI(code) {
             p2ScoreEl.innerText = data.p2Score;
             timerEl.innerText = data.timer;
             
-            if(data.status === 'active' && playerRole === 'p1' && !window.timerInterval) {
-                startTimer();
+            if(data.status === 'active') {
+                rematchOverlay.style.display = 'none';
+                iAmReady = false;
+                readyBtn.style.display = 'block';
+                readyText.innerText = '';
+                
+                // Clear the balls when a new game starts
+                if (data.timer === 60) {
+                    activeBalls = [];
+                    myScore = 0;
+                }
+
+                if (playerRole === 'p1' && !window.timerInterval) {
+                    startTimer();
+                }
+            } else if (data.status === 'finished') {
+                // Trigger Game Over Screen
+                rematchOverlay.style.display = 'flex';
+                
+                // Determine Winner
+                if (data.p1Score > data.p2Score) {
+                    winnerText.innerText = "PLAYER 1 WINS!";
+                    winnerText.style.color = "#ff3333";
+                } else if (data.p2Score > data.p1Score) {
+                    winnerText.innerText = "PLAYER 2 WINS!";
+                    winnerText.style.color = "#ff3333";
+                } else {
+                    winnerText.innerText = "IT'S A TIE!";
+                    winnerText.style.color = "#00ffff";
+                }
+
+                // Manage Ready Up logic
+                const p1R = data.p1Ready || false;
+                const p2R = data.p2Ready || false;
+
+                if (iAmReady) {
+                    readyBtn.style.display = 'none';
+                    readyText.innerText = "Waiting for other player...";
+                } else {
+                    readyBtn.style.display = 'block';
+                    readyText.innerText = "";
+                }
+
+                // If both are ready, Player 1 triggers the global reset
+                if (p1R && p2R && playerRole === 'p1') {
+                    update(ref(db, 'rooms/' + currentRoom), {
+                        p1Score: 0,
+                        p2Score: 0,
+                        timer: 60,
+                        p1Ready: false,
+                        p2Ready: false,
+                        status: 'active'
+                    });
+                }
             }
         }
     });
-    requestAnimationFrame(gameLoop);
+    
+    // Prevent duplicate game loop calls
+    if (!window.gameLoopRunning) {
+        window.gameLoopRunning = true;
+        requestAnimationFrame(gameLoop);
+    }
 }
+
+readyBtn.addEventListener('click', () => {
+    iAmReady = true;
+    readyBtn.style.display = 'none';
+    readyText.innerText = "Waiting for other player...";
+
+    // Tell Firebase this player is ready
+    if (playerRole === 'p1') {
+        update(ref(db, 'rooms/' + currentRoom), { p1Ready: true });
+    } else {
+        update(ref(db, 'rooms/' + currentRoom), { p2Ready: true });
+    }
+});
 
 function startTimer() {
     window.timerInterval = setInterval(() => {
@@ -86,6 +165,7 @@ function startTimer() {
             update(ref(db, 'rooms/' + currentRoom), { timer: currentTimer - 1 });
         } else {
             clearInterval(window.timerInterval);
+            window.timerInterval = null; 
             update(ref(db, 'rooms/' + currentRoom), { status: 'finished' });
         }
     }, 1000);
@@ -100,7 +180,6 @@ class Ball {
         this.scored = false;
         this.playerOwner = playerRole;
         this.power = power;
-
         this.isPerfect = (power >= 50 && power <= 80);
 
         if (this.isPerfect) {
@@ -155,7 +234,6 @@ class Ball {
         ctx.strokeStyle = "#331100";
         ctx.lineWidth = 1.5;
         ctx.stroke();
-
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, -Math.PI / 4, Math.PI / 4);
         ctx.stroke();
@@ -166,12 +244,11 @@ class Ball {
     }
 }
 
-// Replaced simple mousedown with a unified function that handles instantaneous mobile touches
 function shootBall(e) {
-    if (e.cancelable) e.preventDefault(); // Prevents double-firing from ghost clicks
+    if (e.cancelable) e.preventDefault(); 
     
     const timeRemaining = parseInt(timerEl.innerText);
-    if(timeRemaining <= 0) return; 
+    if(timeRemaining <= 0) return; // Prevent shooting when game ends
     if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
     
     const now = Date.now();
@@ -184,7 +261,6 @@ function shootBall(e) {
     activeBalls.push(new Ball(startX, startY, powerValue));
 }
 
-// Listen for both desktop mouse clicks and instantaneous mobile taps
 canvas.addEventListener('mousedown', shootBall);
 canvas.addEventListener('touchstart', shootBall, { passive: false });
 
@@ -196,10 +272,8 @@ function drawHoop(ctx, x, y) {
     ctx.roundRect(x - 75, y - 65, 150, 100, 10);
     ctx.fill();
     ctx.stroke();
-
     ctx.lineWidth = 3;
     ctx.strokeRect(x - 25, y - 25, 50, 40);
-
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -210,7 +284,6 @@ function drawHoop(ctx, x, y) {
     ctx.moveTo(x - 20, y + 25); ctx.lineTo(x + 20, y + 25);
     ctx.moveTo(x - 18, y + 40); ctx.lineTo(x + 18, y + 40);
     ctx.stroke();
-
     ctx.fillStyle = '#ff3333';
     ctx.shadowColor = '#ff3333';
     ctx.shadowBlur = 10;
@@ -258,10 +331,8 @@ function gameLoop() {
     ctx.lineWidth = 2;
     ctx.fillRect(250, 455, 300, 25);
     ctx.strokeRect(250, 455, 300, 25);
-
     ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
     ctx.fillRect(250 + (300 * 0.50), 456, 300 * 0.30, 23);
-
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur = 10;
