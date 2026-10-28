@@ -44,7 +44,6 @@ document.getElementById('createBtn').addEventListener('click', () => {
     currentRoom = code;
     playerRole = 'p1';
     
-    // Setup initial database including the new Ready states
     set(ref(db, 'rooms/' + code), {
         p1Score: 0,
         p2Score: 0,
@@ -86,7 +85,6 @@ function startGameUI(code) {
                 readyBtn.style.display = 'block';
                 readyText.innerText = '';
                 
-                // Clear the balls when a new game starts
                 if (data.timer === 60) {
                     activeBalls = [];
                     myScore = 0;
@@ -96,10 +94,8 @@ function startGameUI(code) {
                     startTimer();
                 }
             } else if (data.status === 'finished') {
-                // Trigger Game Over Screen
                 rematchOverlay.style.display = 'flex';
                 
-                // Determine Winner
                 if (data.p1Score > data.p2Score) {
                     winnerText.innerText = "PLAYER 1 WINS!";
                     winnerText.style.color = "#ff3333";
@@ -111,7 +107,6 @@ function startGameUI(code) {
                     winnerText.style.color = "#00ffff";
                 }
 
-                // Manage Ready Up logic
                 const p1R = data.p1Ready || false;
                 const p2R = data.p2Ready || false;
 
@@ -123,7 +118,6 @@ function startGameUI(code) {
                     readyText.innerText = "";
                 }
 
-                // If both are ready, Player 1 triggers the global reset
                 if (p1R && p2R && playerRole === 'p1') {
                     update(ref(db, 'rooms/' + currentRoom), {
                         p1Score: 0,
@@ -138,7 +132,6 @@ function startGameUI(code) {
         }
     });
     
-    // Prevent duplicate game loop calls
     if (!window.gameLoopRunning) {
         window.gameLoopRunning = true;
         requestAnimationFrame(gameLoop);
@@ -150,7 +143,6 @@ readyBtn.addEventListener('click', () => {
     readyBtn.style.display = 'none';
     readyText.innerText = "Waiting for other player...";
 
-    // Tell Firebase this player is ready
     if (playerRole === 'p1') {
         update(ref(db, 'rooms/' + currentRoom), { p1Ready: true });
     } else {
@@ -180,16 +172,18 @@ class Ball {
         this.scored = false;
         this.playerOwner = playerRole;
         this.power = power;
-        this.isPerfect = (power >= 50 && power <= 80);
+        
+        // Reverted to the tighter, harder Sweet Spot (60% to 75%)
+        this.isPerfect = (power >= 60 && power <= 75);
 
         if (this.isPerfect) {
             this.vy = -19.5;
             this.vx = (Math.random() - 0.5) * 1.2; 
-        } else if (power < 50) {
-            this.vy = -13 - (power / 50) * 4; 
+        } else if (power < 60) {
+            this.vy = -13 - (power / 60) * 4; 
             this.vx = (Math.random() - 0.5) * 2.5;
         } else {
-            this.vy = -21 - ((power - 80) / 20) * 4; 
+            this.vy = -21 - ((power - 75) / 25) * 4; 
             this.vx = (Math.random() - 0.5) * 3;
         }
     }
@@ -202,13 +196,15 @@ class Ball {
         const hoopX = this.playerOwner === 'p1' ? 200 : 600;
         const hoopY = 130;
 
-        if (!this.isPerfect && this.power > 80 && this.vy > 0 && this.y > 60 && this.y < 140 && Math.abs(this.x - hoopX) < 60) {
+        // Brick threshold adjusted back to > 75
+        if (!this.isPerfect && this.power > 75 && this.vy > 0 && this.y > 60 && this.y < 140 && Math.abs(this.x - hoopX) < 60) {
             this.vy = -3; 
             this.vx = (this.x - hoopX > 0 ? 1 : -1) * (2 + Math.random() * 2);
             this.power = 0; 
         }
         
-        if (!this.isPerfect && this.power < 50 && this.vy > 0 && Math.abs(this.x - hoopX) < 40 && Math.abs(this.y - hoopY) < 15) {
+        // Airball threshold adjusted back to < 60
+        if (!this.isPerfect && this.power < 60 && this.vy > 0 && Math.abs(this.x - hoopX) < 40 && Math.abs(this.y - hoopY) < 15) {
             this.vy = -2;
             this.vx = (Math.random() - 0.5) * 4;
             this.power = 0; 
@@ -248,7 +244,7 @@ function shootBall(e) {
     if (e.cancelable) e.preventDefault(); 
     
     const timeRemaining = parseInt(timerEl.innerText);
-    if(timeRemaining <= 0) return; // Prevent shooting when game ends
+    if(timeRemaining <= 0) return; 
     if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
     
     const now = Date.now();
@@ -331,8 +327,11 @@ function gameLoop() {
     ctx.lineWidth = 2;
     ctx.fillRect(250, 455, 300, 25);
     ctx.strokeRect(250, 455, 300, 25);
+    
+    // Visually restored the narrower Sweet Spot (15% width starting at 60%)
     ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
-    ctx.fillRect(250 + (300 * 0.50), 456, 300 * 0.30, 23);
+    ctx.fillRect(250 + (300 * 0.60), 456, 300 * 0.15, 23);
+    
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur = 10;
