@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Updated viewport tag to stop iPhones from weirdly zooming out -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arcade Hoops Multiplayer</title>
     
@@ -26,12 +25,12 @@
     <div id="gameArea" style="display: none;">
         <div id="scoreboard">
             <div class="score-box">P1 Score: <br><span id="p1Score">0</span></div>
-            <div class="timer-box">Time: <br><span id="timer">60</span></div>
+            <!-- Timer default changed to 30 -->
+            <div class="timer-box">Time: <br><span id="timer">30</span></div>
             <div class="score-box">P2 Score: <br><span id="p2Score">0</span></div>
         </div>
         <p>Room Code: <strong id="displayRoomCode"></strong></p>
         
-        <!-- Wrapped canvas in a container to position the Rematch overlay over it -->
         <div id="gameWrapper">
             <canvas id="gameCanvas" width="800" height="500"></canvas>
             
