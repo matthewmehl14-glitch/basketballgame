@@ -47,7 +47,7 @@ document.getElementById('createBtn').addEventListener('click', () => {
     set(ref(db, 'rooms/' + code), {
         p1Score: 0,
         p2Score: 0,
-        timer: 60,
+        timer: 30, // Changed from 60 to 30
         status: 'waiting',
         p1Ready: false,
         p2Ready: false
@@ -85,7 +85,8 @@ function startGameUI(code) {
                 readyBtn.style.display = 'block';
                 readyText.innerText = '';
                 
-                if (data.timer === 60) {
+                // Clear balls when new 30s game starts
+                if (data.timer === 30) {
                     activeBalls = [];
                     myScore = 0;
                 }
@@ -122,7 +123,7 @@ function startGameUI(code) {
                     update(ref(db, 'rooms/' + currentRoom), {
                         p1Score: 0,
                         p2Score: 0,
-                        timer: 60,
+                        timer: 30, // Reset to 30
                         p1Ready: false,
                         p2Ready: false,
                         status: 'active'
@@ -172,8 +173,6 @@ class Ball {
         this.scored = false;
         this.playerOwner = playerRole;
         this.power = power;
-        
-        // Reverted to the tighter, harder Sweet Spot (60% to 75%)
         this.isPerfect = (power >= 60 && power <= 75);
 
         if (this.isPerfect) {
@@ -196,14 +195,12 @@ class Ball {
         const hoopX = this.playerOwner === 'p1' ? 200 : 600;
         const hoopY = 130;
 
-        // Brick threshold adjusted back to > 75
         if (!this.isPerfect && this.power > 75 && this.vy > 0 && this.y > 60 && this.y < 140 && Math.abs(this.x - hoopX) < 60) {
             this.vy = -3; 
             this.vx = (this.x - hoopX > 0 ? 1 : -1) * (2 + Math.random() * 2);
             this.power = 0; 
         }
         
-        // Airball threshold adjusted back to < 60
         if (!this.isPerfect && this.power < 60 && this.vy > 0 && Math.abs(this.x - hoopX) < 40 && Math.abs(this.y - hoopY) < 15) {
             this.vy = -2;
             this.vx = (Math.random() - 0.5) * 4;
@@ -212,7 +209,13 @@ class Ball {
 
         if (!this.scored && this.isPerfect && Math.abs(this.x - hoopX) < 28 && Math.abs(this.y - hoopY) < 18 && this.vy > 0) {
             this.scored = true;
-            myScore++;
+            
+            // Check time dynamically during the shot to determine points
+            const timeRemaining = parseInt(document.getElementById('timer').innerText);
+            const pointsValue = (timeRemaining <= 10 && timeRemaining > 0) ? 3 : 1;
+            
+            myScore += pointsValue;
+            
             if(this.playerOwner === 'p1') {
                 update(ref(db, 'rooms/' + currentRoom), { p1Score: myScore });
             } else {
@@ -245,7 +248,7 @@ function shootBall(e) {
     
     const timeRemaining = parseInt(timerEl.innerText);
     if(timeRemaining <= 0) return; 
-    if(playerRole === 'p1' && document.getElementById('timer').innerText === "60") return; 
+    if(playerRole === 'p1' && timerEl.innerText === "30") return; 
     
     const now = Date.now();
     if (now - lastShotTime < 400) return; 
@@ -288,11 +291,28 @@ function drawHoop(ctx, x, y) {
 }
 
 function gameLoop() {
+    const timeRemaining = parseInt(timerEl.innerText);
+    const isWaitingForP2 = (playerRole === 'p1' && timeRemaining === 30);
+    
+    // Clear canvas with base color to prevent tearing during screen shake
+    ctx.fillStyle = '#0f0f13';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save(); // Save context state before applying the shake
+
+    // Apply Screen Shake if timer is 10 or less
+    if (timeRemaining <= 10 && timeRemaining > 0 && !isWaitingForP2) {
+        const shakeX = (Math.random() - 0.5) * 8;
+        const shakeY = (Math.random() - 0.5) * 8;
+        ctx.translate(shakeX, shakeY);
+    }
+
+    // Draw background slightly oversized to hide canvas edges during shake
     let bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     bgGradient.addColorStop(0, '#0f0f13');
     bgGradient.addColorStop(1, '#1a1a24');
     ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(-20, -20, canvas.width + 40, canvas.height + 40);
 
     ctx.fillStyle = '#111';
     ctx.beginPath();
@@ -310,8 +330,7 @@ function gameLoop() {
         ball.draw(ctx);
     });
 
-    const timeRemaining = parseInt(timerEl.innerText);
-    if (timeRemaining > 0 && !(playerRole === 'p1' && timeRemaining === 60)) {
+    if (timeRemaining > 0 && !isWaitingForP2) {
         powerValue += powerDir * powerSpeed;
         if (powerValue >= 100) {
             powerValue = 100;
@@ -327,26 +346,31 @@ function gameLoop() {
     ctx.lineWidth = 2;
     ctx.fillRect(250, 455, 300, 25);
     ctx.strokeRect(250, 455, 300, 25);
-    
-    // Visually restored the narrower Sweet Spot (15% width starting at 60%)
     ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
     ctx.fillRect(250 + (300 * 0.60), 456, 300 * 0.15, 23);
-    
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur = 10;
     ctx.fillRect(250 + (300 * (powerValue / 100)) - 3, 450, 6, 35);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = 'bold 18px Courier New';
-    ctx.textAlign = 'center';
-    
-    const statusText = (playerRole === 'p1' && timeRemaining === 60) 
-        ? "Waiting for Player 2 to join..." 
-        : `P${playerRole.toUpperCase()} - Stop the line in the GREEN!`;
-        
-    ctx.fillText(statusText, canvas.width / 2, 435);
+    // Warning text color change during the last 10 seconds
+    if (timeRemaining <= 10 && timeRemaining > 0 && !isWaitingForP2) {
+        ctx.fillStyle = 'rgba(255, 50, 50, 1)';
+        ctx.font = 'bold 22px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`3-POINT MODE ACTIVE!`, canvas.width / 2, 435);
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.font = 'bold 18px Courier New';
+        ctx.textAlign = 'center';
+        const statusText = isWaitingForP2 
+            ? "Waiting for Player 2 to join..." 
+            : `P${playerRole.toUpperCase()} - Stop the line in the GREEN!`;
+        ctx.fillText(statusText, canvas.width / 2, 435);
+    }
+
+    ctx.restore(); // Restore context to stop the shake from affecting absolute positioning
 
     requestAnimationFrame(gameLoop);
 }
